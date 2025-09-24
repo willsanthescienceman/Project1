@@ -2,33 +2,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 # Debugging
 msg_lvl = 5
 def msg(lvl, msg):
     if msg_lvl > lvl:
         print(msg)
-
-# --- COEFFICIENTS --- #
-
-def k_1(y, t, mass, k, func):
-    f = [y[1]] # velocity, dy_0/dt
-    f.append(func(y[0], mass, k)) # acceleration, dy_1/dt
-    return f
-
-def k_2(y, t, step, k_1, mass, k, func):
-    yaux = [y[0]+step * k_1[0]/2]
-    yaux.append(y[1]+step * k_1[1]/2)
-    return f(yaux, t+step/2, mass, k, func)
-
-def k_3(y, t, step, k_2, mass, k, func):
-    yaux = [y[0]+step * k_2[0]/2]
-    yaux.append(y[1]+step * k_2[1]/2)
-    return f(yaux, t+step/2, mass, k, func)
-
-def k_4(y, t, step, k_3, mass, k, func):
-    yaux = [y[0]+step * k_3[0]]
-    yaux.append(y[1]+step * k_3[1])
-    return f(yaux, t+step/2, mass, k, func)
 
 # --- UPDATING VALUES --- #
 
@@ -40,13 +19,27 @@ def f(yaux, t, m, k, func):
 
 # Updates the y array
 def update_y(y, t, func, step=0.1, mass=10, k=1):
-    # Get coefficients
-    k1 = k_1(y, t, mass, k, func)
+    # --- COEFFICIENTS --- #
+    #k1 = k_1(y, t, mass, k, func)
+    
+    k1 = [y[1]] # velocity, dy_0/dt
+    k1.append(func(y[0], mass, k)) # acceleration, dy_1/dt
+    msg(4, f"f: {f}")
+
+    yaux = [y[0] + step * k1[0]/2]
+    yaux.append(y[1] + step * k1[1]/2)
+    k2 = f(yaux, t+step/2, mass, k, func)
+
+    yaux = [y[0] + step * k2[0]/2]
+    yaux.append(y[1] + step * k2[1]/2)
+    k3 = f(yaux, t+step/2, mass, k, func)
+
+    yaux = [y[0] + step * k3[0]]
+    yaux.append(y[1] + step * k3[1])
+    k4 = f(yaux, t+step/2, mass, k, func)
+
     msg(6, f"k1: {k1}")
     msg(8, f"k1[0]: {k1[0]}")
-    k2 = k_2(y, t, step, k1, mass, k, func)
-    k3 = k_3(y, t, step, k2, mass, k, func)
-    k4 = k_4(y, t, step, k3, mass, k, func)
 
     # Update each index in y
     y[0] = update_value(0, y, k1, k2, k3, k4, step)
@@ -56,7 +49,7 @@ def update_y(y, t, func, step=0.1, mass=10, k=1):
 
 # Updates a single value (one index of the y array)
 def update_value(i, y, k_1, k_2, k_3, k_4, step):
-    return (y[i] + (k_1[i] + 2*k_2[i] + 2*k_3[i] + k_4[i])/6)
+    return (y[i] + step*(k_1[i] + 2*k_2[i] + 2*k_3[i] + k_4[i])/6)
 
 # --- CREATE ARRAY --- #
     
@@ -78,21 +71,27 @@ def RungeKutta(pos_0, vel_0, func, step_size=0.1, max_time=10, mass=10, k=1):
     total_energy = []
     for time in time_arr:
         y = update_y(y, time, func)
-        pos_arr.append(y[0])
-        vel_arr.append(y[1])
-        pos = pos_arr[-1]
-        vel = vel_arr[-1]
-        PE = -k * pos**2
+        pos = y[0]
+        vel = y[1]
+        pos_arr.append(pos)
+        vel_arr.append(vel)
+        
+        PE =  0.5 * k * pos**2
         PE_arr.append(PE)
         KE = 0.5 * mass * vel**2
         KE_arr.append(KE)
-        total_energy.append(PE + KE)
-
+        E = PE + KE
+        total_energy.append(E)
+    msg(8, f"total_energy: {total_energy}")
+    msg(4, f"KE: {KE_arr}")
+    msg(8, f"pos_arr: {pos_arr}")
+    
     return time_arr, pos_arr, vel_arr, PE_arr, KE_arr, total_energy
     
-def plt_energy(time_arr, energy_arr, show=True):
+def plt_energy(time_arr, energy_arr, PE, show=True):
     plt.figure(figsize=(8, 6))
     plt.plot(time_arr, energy_arr, label='Runge Kutta')
+    plt.plot(time_arr, energy_arr, label='PE')
     if show:
         plt.xlabel('Time (s)')
         plt.ylabel('Total Energy (J)')
